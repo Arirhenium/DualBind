@@ -1,0 +1,17 @@
+{
+    "train":
+    {
+        "model": "DualBind",
+        "data_root" : "./data",
+        "save_dir" : "./model",
+        "graph_type" : "Graph_DualBind",
+        "repeat" : 3,
+        "fold" : 0,
+        "epochs" : 1000,
+        "batch_size" : 256,
+        "early_stop_epoch" : 80,
+        "save_model": true, 
+        "create" : true,
+        "mark": null
+    }
+}
