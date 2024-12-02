@@ -3,11 +3,11 @@ DualBind: Dual-Module Protein-ligand Binding Affinity Prediction with Adaptive G
 
 
 ## Requirements
-matplotlib=3.9.2
-networkx==3.2.1
-numpy=1.23.5
-pandas==2.2.3
-pymol==2.5.0
+matplotlib=3.9.2<br>
+networkx==3.2.1<br>
+numpy=1.23.5<br>
+pandas==2.2.3<br>
+pymol==2.5.0<br>
 rdkit-pypi==2022.9.5
 scikit-learn==1.1.2
 scipy==1.13.1
