@@ -3,7 +3,6 @@ from torch import Tensor
 from torch_geometric.nn.conv import MessagePassing
 import torch.nn as nn
 import torch.nn.functional as F
-from egnn_clean import EGNN
 
 # heterogeneous interaction layer
 class Squeeze(nn.Module):   #Dimention Module

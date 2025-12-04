@@ -6,9 +6,7 @@ import pandas as pd
 import numpy as np
 from DualBind import DualBind
 from dataset import GraphDataset, PLIDataLoader
-from config.config_dict import Config
-from log.train_logger import TrainLogger
-from utils import *
+from utils import Config, TrainLogger, AverageMeter, BestMeter, save_model_dict, load_model_dict
 from sklearn.metrics import mean_squared_error
 
 def val(model, dataloader, device):

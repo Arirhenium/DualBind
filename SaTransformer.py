@@ -1,10 +1,59 @@
 import torch
 import torch.nn as nn
-from HIL import Squeeze, DilatedConvBlockB
 import torch.nn.functional as F
 import math
 import copy
-from features_utils import PT_FEATURE_SIZE
+from utils import PT_FEATURE_SIZE
+
+class Squeeze(nn.Module):
+    def forward(self, input: torch.Tensor):
+        return input.squeeze()
+
+class DilatedConv(nn.Module):
+    def __init__(self, nIn, nOut, kSize, stride=1, d=1):
+        super().__init__()
+        padding = int((kSize - 1) / 2) * d
+        self.conv = nn.Conv1d(nIn, nOut, kSize, stride=stride, padding=padding, bias=False, dilation=d)
+
+    def forward(self, input):
+        output = self.conv(input)
+        return output
+
+class DilatedConvBlockB(nn.Module):
+    def __init__(self, nIn, nOut, add=True):
+        super().__init__()
+        n = int(nOut / 4)
+        n1 = nOut - 3 * n
+        self.c1 = nn.Conv1d(nIn, n, 1, padding=0)
+        self.br1 = nn.Sequential(nn.BatchNorm1d(n), nn.PReLU())
+        self.d1 = DilatedConv(n, n1, 3, 1, 1)
+        self.d2 = DilatedConv(n, n, 3, 1, 2)
+        self.d4 = DilatedConv(n, n, 3, 1, 4)
+        self.d8 = DilatedConv(n, n, 3, 1, 8)
+        self.br2 = nn.Sequential(nn.BatchNorm1d(nOut), nn.PReLU())
+
+        if nIn != nOut:
+            add = False
+        self.add = add
+
+    def forward(self, input):
+        output1 = self.c1(input)
+        output1 = self.br1(output1)
+        d1 = self.d1(output1)
+        d2 = self.d2(output1)
+        d4 = self.d4(output1)
+        d8 = self.d8(output1)
+
+        add1 = d2
+        add2 = add1 + d4
+        add3 = add2 + d8
+
+        combine = torch.cat([d1, add1, add2, add3], 1)
+
+        if self.add:
+            combine = input + combine
+        output = self.br2(combine)
+        return output
 
 # Inlined minimal attention components to avoid external dependency on self_attention.py
 class FeedForwardNetwork(nn.Module):
