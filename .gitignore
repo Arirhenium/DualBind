@@ -1,0 +1,14 @@
+# Python 编译和运行时文件
+__pycache__/
+*.pyc
+
+# IDE 和编辑器文件
+.idea/          # PyCharm / IntelliJ 配置文件夹
+.vscode/        # VS Code 配置文件夹
+
+# 虚拟环境文件夹
+venv/
+
+# 日志文件
+log/
+*.log
