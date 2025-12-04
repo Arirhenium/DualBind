@@ -12,3 +12,24 @@ venv/
 # 日志文件
 log/
 *.log
+
+# 模型与训练产物
+model/
+*.pt
+*.pth
+runs/
+outputs/
+
+# 数据与中间文件
+*.pyg
+*.npy
+*.npz
+*.pkl
+*.pt.tar
+
+# Jupyter 与缓存
+.ipynb_checkpoints/
+.cache/
+
+# 操作系统与杂项
+.DS_Store

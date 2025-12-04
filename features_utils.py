@@ -194,25 +194,7 @@ def get_edge_index(mol, graph):
 
         graph.add_edge(i, j)
 
-def res_list(res_list, verbose=False, ensure_ca_exist=False, bfactor_cutoff=None):
-    clean_res_list = []
-    for res in res_list:
-        hetero, resid, insertion = res.full_id[-1]
-        if hetero == ' ':
-            if res.resname not in three_to_one:
-                if verbose:
-                    print(res, "has non-standard resname")
-                continue
-            if (not ensure_ca_exist) or ('CA' in res):
-                if bfactor_cutoff is not None:
-                    ca_bfactor = float(res['CA'].bfactor)
-                    if ca_bfactor < bfactor_cutoff:
-                        continue
-                clean_res_list.append(res)
-        else:
-            if verbose:
-                print(res, res.full_id, "is hetero")
-    return clean_res_list
+ 
 
 def drug2emb_encoder(x):
     vocab_path = './ESPF/drug_codes_chembl.txt'
@@ -273,25 +255,7 @@ def extract_smiles(mol):
     smiles = Chem.MolToSmiles(mol)
     return smiles
 
-def read_protein(filepath, prot_lm):
-    aa_codes = {
-        'ALA': 'A', 'CYS': 'C', 'ASP': 'D', 'GLU': 'E',
-        'PHE': 'F', 'GLY': 'G', 'HIS': 'H', 'LYS': 'K',
-        'ILE': 'I', 'LEU': 'L', 'MET': 'M', 'ASN': 'N',
-        'PRO': 'P', 'GLN': 'Q', 'ARG': 'R', 'SER': 'S',
-        'THR': 'T', 'VAL': 'V', 'TYR': 'Y', 'TRP': 'W'}
-    seq = ''
-    for line in open(filepath):
-        if line[0:6] == "SEQRES":
-            columns = line.split()
-            for resname in columns[4:]:
-                if resname in aa_codes:
-                    seq = seq + aa_codes[resname] + ' '
-    sequences_Example = re.sub(r"[UZOB]", "X", seq)
-
-    embedding = prot_lm(sequences_Example)
-    e1 = torch.tensor(embedding[0])
-    return e1
+ 
 
 def read_protein_wo(filepath):
     aa_codes = {

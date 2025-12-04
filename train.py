@@ -1,9 +1,9 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import pandas as pd
+import numpy as np
 from DualBind import DualBind
 from dataset import GraphDataset, PLIDataLoader
 from config.config_dict import Config
@@ -42,13 +42,13 @@ if __name__ == '__main__':
     cfg = 'TrainConfig_DualBind'
     config = Config(cfg)
     args = config.get_config()
-    graph_type = args.get("graph_type")
     save_model = args.get("save_model")
     batch_size = args.get("batch_size")
     data_root = args.get('data_root')
     epochs = args.get('epochs')
     repeats = args.get('repeat')
     early_stop_epoch = args.get("early_stop_epoch")
+    dis_threshold = args.get('dis_threshold', 5)
 
     for repeat in range(repeats):
 
@@ -65,11 +65,11 @@ if __name__ == '__main__':
         test2016_df = pd.read_csv(os.path.join(data_root, 'test2016.csv'))
         test2020_df = pd.read_csv(os.path.join(data_root, 'test2020.csv'))
 
-        train_set = GraphDataset(train_dir, train_df, graph_type=graph_type, create=False)
-        valid_set = GraphDataset(valid_dir, valid_df, graph_type=graph_type, create=False)
-        test2013_set = GraphDataset(test2013_dir, test2013_df, graph_type=graph_type, create=False)
-        test2016_set = GraphDataset(test2016_dir, test2016_df, graph_type=graph_type, create=False)
-        test2020_set = GraphDataset(test2020_dir, test2020_df, graph_type=graph_type, create=False)
+        train_set = GraphDataset(train_dir, train_df, dis_threshold=dis_threshold, create=False)
+        valid_set = GraphDataset(valid_dir, valid_df, dis_threshold=dis_threshold, create=False)
+        test2013_set = GraphDataset(test2013_dir, test2013_df, dis_threshold=dis_threshold, create=False)
+        test2016_set = GraphDataset(test2016_dir, test2016_df, dis_threshold=dis_threshold, create=False)
+        test2020_set = GraphDataset(test2020_dir, test2020_df, dis_threshold=dis_threshold, create=False)
 
         train_loader = PLIDataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=4)
         valid_loader = PLIDataLoader(valid_set, batch_size=batch_size, shuffle=False, num_workers=4)
@@ -85,7 +85,7 @@ if __name__ == '__main__':
         logger.info(f"test2016 data: {len(test2016_set)}")
         logger.info(f"test2020 data: {len(test2020_set)}")
 
-        device = torch.device('cuda:0')
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         model = DualBind(35, 256).to(device)
         optimizer = optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-6)
         criterion = nn.MSELoss()
@@ -146,7 +146,11 @@ if __name__ == '__main__':
                     break
 
         # final testing
-        load_model_dict(model, best_model_list[-1])
+        if len(best_model_list) > 0:
+            load_model_dict(model, best_model_list[-1])
+        else:
+            logger.info("No checkpoint saved during training; evaluating current model.")
+
         valid_rmse, valid_pr = val(model, valid_loader, device)
         test2013_rmse, test2013_pr = val(model, test2013_loader, device)
         test2016_rmse, test2016_pr = val(model, test2016_loader, device)
@@ -156,6 +160,3 @@ if __name__ == '__main__':
                     % (valid_rmse, valid_pr, test2013_rmse, test2013_pr, test2016_rmse, test2016_pr, test2020_rmse, test2020_pr)
 
         logger.info(msg)
-        
-
-# %%

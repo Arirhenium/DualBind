@@ -4,7 +4,82 @@ from HIL import Squeeze, DilatedConvBlockB
 import torch.nn.functional as F
 import math
 import copy
-from self_attention import EncoderLayer
+from features_utils import PT_FEATURE_SIZE
+
+# Inlined minimal attention components to avoid external dependency on self_attention.py
+class FeedForwardNetwork(nn.Module):
+    def __init__(self, hidden_size, ffn_size):
+        super(FeedForwardNetwork, self).__init__()
+        self.layer1 = nn.Linear(hidden_size, ffn_size)
+        self.act = nn.ReLU(inplace=True)
+        self.layer2 = nn.Linear(ffn_size, hidden_size)
+
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.act(x)
+        x = self.layer2(x)
+        return x
+
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, hidden_size, attention_dropout_rate, num_heads):
+        super(MultiHeadAttention, self).__init__()
+        self.num_heads = num_heads
+        self.att_size = att_size = hidden_size // num_heads
+        self.scale = att_size ** -0.5
+        self.linear_q = nn.Linear(hidden_size, num_heads * att_size)
+        self.linear_k = nn.Linear(hidden_size, num_heads * att_size)
+        self.linear_v = nn.Linear(hidden_size, num_heads * att_size)
+        self.att_dropout = nn.Dropout(attention_dropout_rate)
+        self.output_layer = nn.Linear(num_heads * att_size, hidden_size)
+
+    def forward(self, q, k, v, attn_bias=None):
+        orig_q_size = q.size()
+        d_k = self.att_size
+        d_v = self.att_size
+        batch_size = q.size(0)
+        q = self.linear_q(q).view(batch_size, -1, self.num_heads, d_k)
+        k = self.linear_k(k).view(batch_size, -1, self.num_heads, d_k)
+        v = self.linear_v(v).view(batch_size, -1, self.num_heads, d_v)
+        q = q.transpose(1, 2)
+        v = v.transpose(1, 2)
+        k = k.transpose(1, 2).transpose(2, 3)
+        q = q * self.scale
+        x = torch.matmul(q, k)
+        if attn_bias is not None:
+            x = x + attn_bias
+        x = torch.softmax(x, dim=3)
+        x = self.att_dropout(x)
+        x = x.matmul(v)
+        x = x.transpose(1, 2).contiguous()
+        x = x.view(batch_size, -1, self.num_heads * d_v)
+        x = self.output_layer(x)
+        assert x.size() == orig_q_size
+        return x
+
+
+class EncoderLayer(nn.Module):
+    def __init__(self, hidden_size, ffn_size, dropout_rate, attention_dropout_rate, num_heads):
+        super(EncoderLayer, self).__init__()
+        self.self_attention_norm = nn.LayerNorm(hidden_size)
+        self.self_attention = MultiHeadAttention(hidden_size, attention_dropout_rate, num_heads)
+        self.self_attention_dropout = nn.Dropout(dropout_rate)
+        self.ffn_norm = nn.LayerNorm(hidden_size)
+        self.ffn = FeedForwardNetwork(hidden_size, ffn_size)
+        self.ffn_dropout = nn.Dropout(dropout_rate)
+
+    def forward(self, x, kv, attn_bias=None):
+        y = self.self_attention_norm(x)
+        kv = self.self_attention_norm(kv)
+        y = self.self_attention(y, kv, kv, attn_bias)
+        y = self.self_attention_dropout(y)
+        x = x + y
+        y = self.ffn_norm(x)
+        y = self.ffn(y)
+        y = self.ffn_dropout(y)
+        x = x + y
+        return x
+
 
 class SaTransformerNetwork(nn.Module):
     def __init__(self, hidden_feat_size):
@@ -23,7 +98,6 @@ class SaTransformerNetwork(nn.Module):
         self.n_layer = 2
         smi_embed_size = 128
         pkt_embed_size = 128
-        PT_FEATURE_SIZE = 40
 
         #transformer
         self.demb = Embeddings(self.input_dim_drug, self.emb_size, self.max_d, self.dropout_rate)
@@ -103,11 +177,10 @@ class Embeddings(nn.Module):
         self.dropout = nn.Dropout(dropout_rate)
 
     def forward(self, input_ids):
-        b = torch.LongTensor(1, 2)
-        b = b.cuda()
-        input_ids = input_ids.type_as(b)
+        input_ids = input_ids.long()
+        device = input_ids.device
         seq_length = input_ids.size(1)
-        position_ids = torch.arange(seq_length, dtype=torch.long, device=input_ids.device)
+        position_ids = torch.arange(seq_length, dtype=torch.long, device=device)
 
         position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
 
@@ -252,13 +325,3 @@ class Output(nn.Module):
         hidden_states = self.dropout(hidden_states)
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
-
-class DilatedConv(nn.Module):  # Dilated Convolution
-    def __init__(self, nIn, nOut, kSize, stride=1, d=1):
-            super().__init__()
-            padding = int((kSize - 1) / 2) * d
-            self.conv = nn.Conv1d(nIn, nOut, kSize, stride=stride, padding=padding, bias=False, dilation=d)
-
-    def forward(self, input):
-            output = self.conv(input)
-            return output

@@ -3,12 +3,11 @@ import pandas as pd
 import numpy as np
 import pickle
 import multiprocessing
-from itertools import repeat
 import torch
 from torch.utils.data import Dataset, DataLoader
 from rdkit import RDLogger
 from features_utils import (get_features, inter_graph, drug2emb_encoder,
-                            protein2emb_encoder, extract_smiles, read_protein_wo)
+                            protein2emb_encoder, extract_smiles, read_protein_wo, PT_FEATURE_SIZE)
 from torch_geometric.data import Batch, Data
 import warnings
 
@@ -16,8 +15,7 @@ RDLogger.DisableLog('rdApp.*')
 np.set_printoptions(threshold=np.inf)
 warnings.filterwarnings('ignore')
 
-PT_FEATURE_SIZE = 40
-MAX_SMI_LEN = 150
+# use PT_FEATURE_SIZE from features_utils
 
 # Function to create paths for all components of a sample
 def generate_paths(data_dir, cid, dis_threshold, seq_type='p_lm'):
