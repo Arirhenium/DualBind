@@ -84,16 +84,3 @@ python train.py
 ```
 
 
-## How to Cite
-
-If you use DualBind in your research, please cite our paper:
-
-```
-@article{dualbinda,
-  title={DualBind: Dual-Module Protein-ligand Binding Affinity Prediction with Adaptive GNN and Structure-Aware Transformer},
-  author={Author Names},
-  journal={Journal Name},
-  year={2024}
-}
-```
-
